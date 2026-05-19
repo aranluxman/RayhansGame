@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Treasure Scramble</title>
+  <style>
+    :root {
+      --ink: #183326;
+      --paper: #fff3c5;
+      --sand: #f9d36e;
+      --jungle: #24744f;
+      --jungle-dark: #123f31;
+      --water: #2bb3d6;
+      --ruby: #f24b5b;
+      --gold: #ffc934;
+      --violet: #7e57ff;
+      --sky: #9be6ff;
+      --shadow: 0 18px 45px rgba(16, 42, 30, .25);
+      --small-shadow: 0 8px 20px rgba(16, 42, 30, .18);
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 14%, rgba(255, 232, 111, .45), transparent 18rem),
+        radial-gradient(circle at 82% 18%, rgba(79, 186, 118, .35), transparent 18rem),
+        linear-gradient(135deg, #2f8f5d 0%, #1e7257 46%, #125645 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-image:
+        repeating-linear-gradient(25deg, transparent 0 22px, rgba(255,255,255,.35) 23px 24px),
+        radial-gradient(circle at 30% 70%, #07533a 0 3px, transparent 4px);
+      mix-blend-mode: soft-light;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .12;
+      background-image:
+        radial-gradient(circle, #fff 0 2px, transparent 3px),
+        radial-gradient(circle, #ffe757 0 3px, transparent 4px),
+        radial-gradient(circle, #ff5fa8 0 2px, transparent 3px);
+      background-position: 6% 18%, 72% 12%, 88% 78%;
+      background-size: 120px 140px, 190px 160px, 150px 190px;
+      animation: sparkleDrift 12s linear infinite;
+    }
+
+    @keyframes sparkleDrift {
+      from { transform: translateY(0); }
+      to { transform: translateY(-70px); }
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: .75rem 1rem;
+      color: #fff;
+      background: linear-gradient(180deg, #f37528, #d6461b);
+      box-shadow: 0 5px 0 #94300f, var(--small-shadow);
+      cursor: pointer;
+      font-weight: 800;
+      letter-spacing: .2px;
+      transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+    }
+
+    #startSetupBtn, #beginGameBtn, #rollBtn {
+      background: linear-gradient(180deg, #ff7a35 0%, #ff2f68 100%);
+      box-shadow: 0 7px 0 #971b3b, 0 0 0 5px rgba(255,255,255,.35), var(--small-shadow);
+      text-transform: uppercase;
+    }
+
+    button:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    button:active { transform: translateY(3px); box-shadow: 0 2px 0 #94300f, var(--small-shadow); }
+    button:disabled { filter: grayscale(.4) brightness(.9); cursor: not-allowed; opacity: .65; }
+
+    .secondary {
+      background: linear-gradient(180deg, #2bb3d6, #137b9a);
+      box-shadow: 0 5px 0 #07536b, var(--small-shadow);
+    }
+
+    .ghost {
+      color: var(--ink);
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 4px 0 rgba(24,51,38,.25), var(--small-shadow);
+    }
+
+    .screen {
+      display: none;
+      min-height: 100vh;
+      padding: clamp(.65rem, 2vw, 1.4rem);
+      position: relative;
+    }
+
+    .screen.active {
+      display: grid;
+      place-items: center;
+    }
+
+    .title-card, .setup-card, .modal-card {
+      width: min(920px, 100%);
+      border: 5px solid #6b3e15;
+      border-radius: 24px;
+      padding: clamp(1rem, 3vw, 2.1rem);
+      background:
+        radial-gradient(circle at 17% 15%, rgba(255,255,255,.88), transparent 13rem),
+        linear-gradient(135deg, rgba(255,255,255,.65), rgba(255,255,255,.1)),
+        linear-gradient(160deg, #fbefd0 0%, #efd187 58%, #dca957 100%);
+      box-shadow: var(--shadow);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .title-card::before, .setup-card::before, .modal-card::before {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border: 2px dashed rgba(107, 62, 21, .35);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .quick-badge {
+      display: inline-grid;
+      place-items: center;
+      margin-bottom: .75rem;
+      padding: .42rem .72rem;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(180deg, #ff5f9d, #da2e6f);
+      border: 3px solid rgba(255,255,255,.7);
+      box-shadow: 0 5px 0 rgba(109, 28, 68, .35);
+      font-weight: 1000;
+      text-transform: uppercase;
+      font-size: .8rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.45rem, 6.8vw, 4.8rem);
+      line-height: .9;
+      color: #7a2e10;
+      text-shadow: 0 4px 0 #ffd56d, 0 8px 22px rgba(71, 38, 10, .22);
+    }
+
+    .subtitle {
+      margin: .75rem auto 1rem;
+      max-width: 640px;
+      font-size: clamp(1rem, 2.3vw, 1.35rem);
+      font-weight: 700;
+    }
+
+    .title-art {
+      display: grid;
+      place-items: center;
+      width: min(230px, 58vw);
+      aspect-ratio: 1;
+      margin: .45rem auto .8rem;
+      border-radius: 14px;
+      background:
+        linear-gradient(90deg, #fff7d5 0 15%, transparent 15% 85%, #fff7d5 85%),
+        linear-gradient(0deg, #fff7d5 0 15%, transparent 15% 85%, #fff7d5 85%),
+        linear-gradient(135deg, #efe1ad, #d9c176);
+      border: 8px solid #4a2a12;
+      box-shadow: inset 0 0 0 5px rgba(255,255,255,.55), var(--shadow);
+      position: relative;
+      animation: titleFloat 3s ease-in-out infinite alternate;
+    }
+
+    .title-art::before {
+      content: "💎  🃏  🌀  🪤";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 1.5rem;
+      letter-spacing: .28rem;
+      transform: rotate(-35deg);
+      opacity: .82;
+    }
+
+    @keyframes titleFloat {
+      from { transform: translateY(0) rotate(-1deg); }
+      to { transform: translateY(-8px) rotate(1deg); }
+    }
+
+    .title-art .temple {
+      width: 48%;
+      aspect-ratio: 1.15;
+      border-radius: 8px;
+      clip-path: none;
+      background: linear-gradient(180deg, #ffe189, #b7742a);
+      border: 4px solid #6a3e15;
+      box-shadow: inset 0 -18px 0 rgba(77, 45, 19, .18);
+      z-index: 1;
+    }
+
+    .instant-note {
+      margin: -.15rem 0 .75rem;
+      font-weight: 1000;
+      color: #1f764e;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-actions, .setup-actions, .top-actions, .modal-actions, .mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .75rem;
+    }
+
+    .setup-grid {
+      display: grid;
+      gap: 1rem;
+      margin: 1.5rem auto;
+      max-width: 560px;
+      text-align: left;
+    }
+
+    .setup-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .75rem;
+      align-items: center;
+      padding: .9rem;
+      border-radius: 12px;
+      background: rgba(255,255,255,.55);
+      border: 2px solid rgba(107,62,21,.16);
+      font-weight: 800;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      min-width: 120px;
+      border: 2px solid rgba(24,51,38,.25);
+      border-radius: 9px;
+      padding: .55rem .65rem;
+      background: rgba(255,255,255,.9);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    #gameScreen.active {
+      display: block;
+      padding: clamp(.6rem, 1.8vw, 1.4rem);
+    }
+
+    .game-shell {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(290px, 380px);
+      gap: clamp(.8rem, 2vw, 1.2rem);
+      max-width: 1420px;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    .top-bar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: .8rem 1rem;
+      border: 4px solid rgba(82, 47, 14, .5);
+      border-radius: 16px;
+      background: rgba(255, 242, 190, .92);
+      box-shadow: var(--small-shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      flex: 0 0 52px;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ffed75, #f28b2e);
+      border: 3px solid #743b13;
+      box-shadow: inset 0 -7px 0 rgba(92, 49, 16, .18);
+      font-size: 1.9rem;
+    }
+
+    .brand h2 {
+      margin: 0;
+      font-size: clamp(1.25rem, 3vw, 2.1rem);
+      color: #783510;
+      line-height: 1;
+    }
+
+    .turn-banner {
+      margin-top: .35rem;
+      font-weight: 900;
+      color: #1c6045;
+    }
+
+    .board-wrap {
+      display: grid;
+      place-items: center;
+      padding: clamp(.4rem, 1.5vw, 1rem);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0)),
+        rgba(24, 64, 47, .32);
+      box-shadow: 0 24px 55px rgba(11, 37, 34, .32);
+    }
+
+    .board {
+      position: relative;
+      width: min(86vw, 710px);
+      aspect-ratio: 1;
+      border: 12px solid #3f2411;
+      border-radius: 16px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(72, 44, 20, .08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(72, 44, 20, .08) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(255, 234, 150, .78) 0 23%, transparent 24%),
+        linear-gradient(135deg, #f7e7b5 0%, #efd487 48%, #e8bd63 100%);
+      background-size: 34px 34px, 34px 34px, auto, auto;
+      box-shadow: inset 0 0 0 8px #f9efcf, inset 0 0 0 18px rgba(94, 57, 24, .2), var(--shadow);
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 16%;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,0)),
+        linear-gradient(180deg, rgba(39, 123, 76, .28), rgba(22, 104, 82, .2));
+      border: 5px solid rgba(69, 40, 17, .42);
+      border-radius: 10px;
+      box-shadow: inset 0 0 0 8px rgba(255,255,255,.22);
+      opacity: 1;
+    }
+
+    .board::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      inset: 20%;
+      pointer-events: none;
+      background:
+        linear-gradient(45deg, transparent 48%, rgba(92, 58, 26, .18) 49% 51%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, rgba(92, 58, 26, .18) 49% 51%, transparent 52%);
+      filter: none;
+      opacity: .7;
+    }
+
+    @keyframes boardShimmer {
+      from { opacity: .28; }
+      to { opacity: .8; }
+    }
+
+    .map-prop {
+      position: absolute;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      width: 11%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      font-size: clamp(1.3rem, 3vw, 2.3rem);
+      filter: drop-shadow(0 8px 0 rgba(70,40,12,.18));
+      pointer-events: none;
+    }
+
+    .map-prop.ship { left: 24%; top: 72%; transform: rotate(-16deg); }
+    .map-prop.waterfall { right: 26%; top: 43%; transform: rotate(10deg); }
+    .map-prop.palm { left: 28%; bottom: 20%; transform: rotate(12deg); }
+    .map-prop.idol { right: 31%; bottom: 20%; transform: rotate(-8deg); }
+
+    .path-line {
+      position: absolute;
+      inset: 13.6%;
+      border: 6px solid rgba(64, 36, 17, .58);
+      border-radius: 8px;
+      transform: none;
+      box-shadow: 0 0 0 6px rgba(255,255,255,.4);
+      filter: none;
+    }
+
+    .temple-center {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 50%;
+      width: 30%;
+      aspect-ratio: 1.15;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: #5f2a0c;
+      font-weight: 1000;
+      line-height: .95;
+      border: 6px solid #513015;
+      border-radius: 12px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,.18) 1px, transparent 1px),
+        linear-gradient(180deg, #ffe481, #d99a39 58%, #a96726);
+      background-size: 18px 18px, 18px 18px, auto;
+      box-shadow: 0 0 0 12px rgba(255, 236, 65, .28), 0 18px 35px rgba(65, 37, 13, .35);
+      clip-path: none;
+    }
+
+    .temple-center span {
+      display: block;
+      padding-top: 0;
+      font-size: clamp(.76rem, 2vw, 1.2rem);
+      text-shadow: 0 1px 0 rgba(255,255,255,.55);
+    }
+
+    .space {
+      position: absolute;
+      z-index: 4;
+      width: 10.6%;
+      height: 13.4%;
+      display: grid;
+      grid-template-rows: 22% 1fr auto;
+      place-items: center;
+      border-radius: 7px;
+      border: 2px solid #3f2411;
+      box-shadow: 0 3px 0 rgba(72, 39, 12, .26), 0 7px 15px rgba(44, 25, 7, .18);
+      transform: translate(-50%, -50%);
+      font-size: clamp(.66rem, 1.55vw, 1rem);
+      font-weight: 1000;
+      user-select: none;
+      overflow: hidden;
+      color: #2e1d11;
+      text-align: center;
+      background: #fff8db;
+    }
+
+    .space::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 23%;
+      border-radius: 0;
+      background: var(--stripe, #f2ca4c);
+      filter: none;
+    }
+
+    .space.edge-left, .space.edge-right {
+      width: 13.4%;
+      height: 10.6%;
+      grid-template-columns: 24% 1fr auto;
+      grid-template-rows: 1fr;
+    }
+
+    .space.edge-left::before, .space.edge-right::before {
+      inset: 0 auto 0 0;
+      width: 24%;
+      height: auto;
+    }
+
+    .space.corner {
+      width: 15.2%;
+      height: 15.2%;
+      grid-template-rows: 1fr auto;
+      border-width: 3px;
+      background: linear-gradient(180deg, #fff7cf, #ead391);
+    }
+
+    .space.corner::before {
+      display: none;
+    }
+
+    .space.start { --stripe: #f3b23c; }
+    .space.treasure { --stripe: #f2cf34; }
+    .space.trap { --stripe: #cf3448; }
+    .space.mini { --stripe: #2ea8d7; }
+    .space.chaos { --stripe: #7a55cc; }
+    .space.trade { --stripe: #33ad6a; }
+    .space.teleport { --stripe: #d941ae; }
+
+    .space-icon {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(1rem, 2vw, 1.45rem);
+      line-height: 1;
+    }
+
+    .space-name {
+      position: relative;
+      z-index: 1;
+      padding: 0 .18rem;
+      font-size: clamp(.42rem, 1.05vw, .66rem);
+      line-height: 1.05;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .space.edge-left .space-name, .space.edge-right .space-name {
+      font-size: clamp(.39rem, .92vw, .6rem);
+    }
+
+    .space .space-index {
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      display: grid;
+      place-items: center;
+      min-width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      background: rgba(255,255,255,.84);
+      color: #4d2c0f;
+      border: 1px solid rgba(75,43,13,.32);
+      font-size: .52rem;
+      line-height: 1;
+    }
+
+    .token {
+      position: absolute;
+      z-index: 8;
+      width: clamp(22px, 4.1vw, 38px);
+      height: clamp(22px, 4.1vw, 38px);
+      border-radius: 50% 50% 44% 44%;
+      border: 3px solid rgba(255,255,255,.9);
+      box-shadow: 0 6px 0 rgba(45, 30, 12, .25), 0 8px 15px rgba(38, 25, 7, .26), inset 0 7px 0 rgba(255,255,255,.24);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 1000;
+      font-size: clamp(.7rem, 1.8vw, 1rem);
+      transform: translate(-50%, -80%);
+      transition: left .34s cubic-bezier(.22,.75,.27,1.2), top .34s cubic-bezier(.22,.75,.27,1.2), transform .2s ease;
+    }
+
+    .token.active-token {
+      transform: translate(-50%, -88%) scale(1.18);
+      box-shadow: 0 0 0 5px rgba(255, 241, 87, .62), 0 8px 0 rgba(45, 30, 12, .25), 0 14px 22px rgba(38, 25, 7, .28);
+    }
+
+    .side-panel {
+      display: grid;
+      gap: .85rem;
+    }
+
+    .panel {
+      border: 4px solid rgba(87, 51, 17, .52);
+      border-radius: 16px;
+      background: rgba(255, 243, 197, .96);
+      box-shadow: var(--small-shadow);
+      padding: .9rem;
+    }
+
+    .panel h3 {
+      margin: 0 0 .7rem;
+      color: #73350f;
+      font-size: 1.12rem;
+    }
+
+    .dice-area {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: .85rem;
+      align-items: center;
+    }
+
+    .die {
+      display: grid;
+      place-items: center;
+      width: 86px;
+      height: 86px;
+      border: 5px solid #6d3d13;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #fffef4, #ffd974);
+      font-size: 2.6rem;
+      font-weight: 1000;
+      box-shadow: inset 0 -10px 0 rgba(117,65,20,.14), 0 8px 0 rgba(80, 46, 17, .28);
+    }
+
+    .die.rolling {
+      animation: diceWobble .42s linear infinite;
+    }
+
+    @keyframes diceWobble {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(8deg) scale(1.05); }
+      50% { transform: rotate(-6deg) scale(.98); }
+      75% { transform: rotate(10deg) scale(1.03); }
+      100% { transform: rotate(0deg) scale(1); }
+    }
+
+    .players-list {
+      display: grid;
+      gap: .55rem;
+    }
+
+    .player-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: .55rem;
+      padding: .58rem;
+      border: 2px solid rgba(87,51,17,.18);
+      border-radius: 12px;
+      background: rgba(255,255,255,.58);
+    }
+
+    .player-card.current {
+      border-color: rgba(246, 157, 38, .9);
+      box-shadow: 0 0 0 3px rgba(255, 216, 85, .45);
+    }
+
+    .mini-token {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 1000;
+      border: 2px solid #fff;
+      box-shadow: 0 3px 0 rgba(44,25,7,.25);
+    }
+
+    .player-name {
+      margin: 0;
+      font-weight: 1000;
+      color: #592a0c;
+    }
+
+    .player-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .35rem;
+      margin-top: .2rem;
+      font-size: .82rem;
+      font-weight: 800;
+    }
+
+    .stat-pill {
+      border-radius: 999px;
+      padding: .16rem .45rem;
+      background: rgba(255,211,77,.55);
+      white-space: nowrap;
+    }
+
+    .log {
+      height: min(34vh, 280px);
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: .45rem;
+      padding-right: .2rem;
+    }
+
+    .log-entry {
+      padding: .45rem .55rem;
+      border-radius: 9px;
+      background: rgba(255,255,255,.62);
+      font-size: .88rem;
+      line-height: 1.25;
+      border-left: 4px solid #f0a02b;
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .5rem;
+      font-size: .9rem;
+      text-align: left;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-weight: 800;
+    }
+
+    .legend-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid rgba(88,51,16,.55);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      flex: 0 0 auto;
+    }
+
+    .legend-dot.start { background: linear-gradient(180deg, #fff06d, #f1a43c); color: #4d2c0f; }
+    .legend-dot.treasure { background: linear-gradient(180deg, #ffe777, #ffa51f); color: #4d2c0f; }
+    .legend-dot.trap { background: linear-gradient(180deg, #ff7982, #c91f38); }
+    .legend-dot.mini { background: linear-gradient(180deg, #8de8ff, #168cb2); }
+    .legend-dot.chaos { background: linear-gradient(180deg, #b99dff, #6339d4); }
+    .legend-dot.trade { background: linear-gradient(180deg, #8df0a5, #198d55); }
+    .legend-dot.teleport { background: linear-gradient(180deg, #ffd2f8, #d637b2); }
+
+    .overlay {
+      position: fixed;
+      z-index: 30;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 1rem;
+      background: rgba(8, 35, 25, .66);
+      backdrop-filter: blur(5px);
+    }
+
+    .overlay.active { display: grid; }
+
+    .modal-card {
+      max-width: 780px;
+      max-height: min(88vh, 760px);
+      overflow: auto;
+      text-align: left;
+    }
+
+    .modal-card h2 {
+      margin: 0 0 .65rem;
+      color: #74340f;
+      font-size: clamp(1.5rem, 5vw, 2.25rem);
+      text-align: center;
+    }
+
+    .modal-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .mini-stage {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255,255,255,.65), transparent 9rem),
+        rgba(255,255,255,.45);
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .target-ring {
+      position: relative;
+      width: min(320px, 72vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffe66f 0 12%, #2ecf7b 13% 28%, #2bb3d6 29% 44%, #f05c5f 45% 60%, rgba(255,255,255,.7) 61%);
+      border: 6px solid #613713;
+      box-shadow: inset 0 0 0 7px rgba(255,255,255,.3);
+    }
+
+    .aim-marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 8px;
+      margin-left: -4px;
+      background: #fff;
+      transform-origin: 50% 100%;
+      animation: sweep 1s ease-in-out infinite alternate;
+      box-shadow: 0 0 12px rgba(0,0,0,.3);
+    }
+
+    @keyframes sweep {
+      from { transform: rotate(-65deg); }
+      to { transform: rotate(65deg); }
+    }
+
+    .cup-row, .memory-row, .gem-field, .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .75rem;
+    }
+
+    .cup {
+      width: 58px;
+      height: 66px;
+      border-radius: 10px 10px 22px 22px;
+      background: linear-gradient(180deg, #ffef94, #f27d2e);
+      border: 4px solid #753c12;
+      box-shadow: inset 0 -12px 0 rgba(117,60,18,.2), 0 6px 0 rgba(64,37,11,.22);
+      cursor: pointer;
+      transition: transform .12s ease;
+    }
+
+    .cup.done {
+      transform: translateY(-18px) rotate(-6deg);
+      background: linear-gradient(180deg, #8de8ff, #168cb2);
+    }
+
+    .memory-item, .number-choice {
+      min-width: 54px;
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      border: 3px solid #6b3e15;
+      background: rgba(255,255,255,.85);
+      font-size: 1.8rem;
+      font-weight: 1000;
+      cursor: pointer;
+      box-shadow: 0 5px 0 rgba(64,37,11,.22);
+    }
+
+    .balance-track {
+      width: min(420px, 80vw);
+      height: 30px;
+      border-radius: 999px;
+      border: 4px solid #633713;
+      background: linear-gradient(90deg, #f25a5a, #ffe17b 35% 65%, #f25a5a);
+      position: relative;
+    }
+
+    .balance-zone {
+      position: absolute;
+      left: 39%;
+      right: 39%;
+      top: -8px;
+      bottom: -8px;
+      border: 3px dashed #fff;
+      border-radius: 999px;
+    }
+
+    .balance-orb {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #fff, #2bb3d6 45%, #126d91);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 5px 12px rgba(0,0,0,.25);
+    }
+
+    .gem {
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(255,255,255,.85);
+      clip-path: polygon(50% 0, 90% 32%, 72% 100%, 28% 100%, 10% 32%);
+      background: linear-gradient(135deg, #fff, #44e4ff 35%, #1761d2);
+      filter: drop-shadow(0 5px 0 rgba(45, 30, 12, .28));
+      cursor: pointer;
+      animation: gemPop .22s ease;
+    }
+
+    .grab-pad {
+      min-width: 120px;
+      min-height: 86px;
+      display: grid;
+      place-items: center;
+      gap: .2rem;
+      border: 4px solid rgba(255,255,255,.9);
+      border-radius: 16px;
+      color: #fff;
+      font-weight: 1000;
+      text-shadow: 0 2px 0 rgba(0,0,0,.2);
+      box-shadow: 0 7px 0 rgba(45, 30, 12, .24), 0 10px 20px rgba(45, 30, 12, .22);
+    }
+
+    .grab-pad strong {
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    @keyframes gemPop {
+      from { transform: scale(.3) rotate(-20deg); opacity: .1; }
+      to { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    .timer-bar {
+      width: min(480px, 82vw);
+      height: 16px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 3px solid #633713;
+      background: rgba(255,255,255,.55);
+    }
+
+    .timer-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #39c66f, #ffe25a, #f25a5a);
+      transform-origin: left center;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 40;
+      left: 50%;
+      top: 1rem;
+      transform: translateX(-50%) translateY(-150%);
+      max-width: min(92vw, 540px);
+      padding: .9rem 1.1rem;
+      border-radius: 13px;
+      border: 3px solid #6b3e15;
+      background: #fff3c5;
+      box-shadow: var(--shadow);
+      font-weight: 1000;
+      text-align: center;
+      transition: transform .25s ease;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .win-burst {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      pointer-events: none;
+      display: none;
+      background:
+        radial-gradient(circle at 20% 25%, rgba(255, 237, 96, .8), transparent 12rem),
+        radial-gradient(circle at 80% 20%, rgba(255, 90, 116, .55), transparent 12rem),
+        radial-gradient(circle at 50% 75%, rgba(69, 218, 255, .55), transparent 14rem);
+      animation: pulseWin .8s ease infinite alternate;
+    }
+
+    .win-burst.active { display: block; }
+
+    @keyframes pulseWin {
+      from { opacity: .3; }
+      to { opacity: .85; }
+    }
+
+    @media (max-width: 980px) {
+      .game-shell { grid-template-columns: 1fr; }
+      .top-bar { grid-template-columns: 1fr; }
+      .top-actions { justify-content: flex-start; }
+      .board { width: min(96vw, 710px); }
+      .side-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel.full-mobile { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 650px) {
+      .side-panel { grid-template-columns: 1fr; }
+      .dice-area { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .help-grid { grid-template-columns: 1fr; }
+      .space { border-width: 3px; }
+      .space .space-index { display: none; }
+      button { width: 100%; }
+      .title-actions button, .setup-actions button, .top-actions button, .modal-actions button, .mini-actions button { width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+  <div class="win-burst" id="winBurst"></div>
+
+  <main class="screen active" id="titleScreen">
+    <section class="title-card">
+      <div class="quick-badge">Instant Online Board Game</div>
+      <h1>Treasure Scramble</h1>
+      <p class="subtitle">Race around a wild treasure-map trail, win arcade mini-games, survive chaos cards, collect 5 treasures, then storm the Treasure Temple.</p>
+      <div class="title-art" aria-hidden="true"><div class="temple"></div></div>
+      <p class="instant-note">Press Play Now to jump straight into a 2-player game.</p>
+      <div class="title-actions">
+        <button id="startSetupBtn">Play Now</button>
+        <button class="secondary" id="setupFromTitleBtn">Players</button>
+        <button class="secondary" id="titleRulesBtn">Rules</button>
+      </div>
+    </section>
+  </main>
+
+  <main class="screen" id="setupScreen">
+    <section class="setup-card">
+      <h1>Choose Your Crew</h1>
+      <p class="subtitle">Pick 2 to 4 players. Every player needs 5 treasures before they can claim the temple.</p>
+      <div class="setup-grid">
+        <label class="setup-row">
+          <span>Players</span>
+          <select id="playerCount">
+            <option value="2">2 Players</option>
+            <option value="3">3 Players</option>
+            <option value="4">4 Players</option>
+          </select>
+        </label>
+        <div id="playerNameFields"></div>
+      </div>
+      <div class="setup-actions">
+        <button id="beginGameBtn">Begin Game</button>
+        <button class="ghost" id="backTitleBtn">Back</button>
+      </div>
+    </section>
+  </main>
+
+  <main class="screen" id="gameScreen">
+    <div class="game-shell">
+      <header class="top-bar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">💎</div>
+          <div>
+            <h2>Treasure Scramble</h2>
+            <div class="turn-banner" id="turnBanner">Player 1's turn</div>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="secondary" id="rulesBtn">Rules</button>
+          <button class="ghost" id="restartBtn">Restart</button>
+        </div>
+      </header>
+
+      <section class="board-wrap" aria-label="Treasure Scramble board">
+        <div class="board" id="board">
+          <div class="path-line"></div>
+          <div class="map-prop ship" aria-hidden="true">⛵</div>
+          <div class="map-prop waterfall" aria-hidden="true">💦</div>
+          <div class="map-prop palm" aria-hidden="true">🌴</div>
+          <div class="map-prop idol" aria-hidden="true">🗿</div>
+          <div class="temple-center" id="templeCenter"><span>Treasure<br>Temple<br>5 💎</span></div>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <section class="panel full-mobile">
+          <h3>Turn Controls</h3>
+          <div class="dice-area">
+            <div class="die" id="die">?</div>
+            <div>
+              <button id="rollBtn">Roll Die</button>
+              <p id="actionHint">Roll, move, and the space triggers automatically.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Players</h3>
+          <div class="players-list" id="playersList"></div>
+        </section>
+
+        <section class="panel">
+          <h3>Space Guide</h3>
+          <div class="help-grid" id="legend"></div>
+        </section>
+
+        <section class="panel full-mobile">
+          <h3>Adventure Log</h3>
+          <div class="log" id="log"></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div class="overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <section class="modal-card">
+      <div class="modal-content">
+        <h2 id="modalTitle">Rules</h2>
+        <div id="modalBody"></div>
+        <div class="modal-actions" id="modalActions"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    "use strict";
+
+    const CONFIG = {
+      treasureTarget: 5,
+      minPlayers: 2,
+      maxPlayers: 4,
+      moveDelay: 360,
+      diceRollTime: 850,
+      trapBackSteps: 3,
+      earthquakeBackSteps: 2,
+      treasureRainSeconds: 4,
+      treasureGrabSeconds: 3,
+      speedStackSeconds: 5,
+      balanceSeconds: 5,
+      memoryShowSeconds: 10,
+      memoryNeedCorrect: 4,
+      cupTossNeedHits: 2
+    };
+
+    const PLAYER_SETTINGS = [
+      { name: "Ruby Ranger", color: "#e5394d", icon: "R" },
+      { name: "Lagoon Scout", color: "#168dcc", icon: "L" },
+      { name: "Jungle Jumper", color: "#23a455", icon: "J" },
+      { name: "Sunset Dash", color: "#f28b25", icon: "S" }
+    ];
+
+    const SPACE_TYPES = {
+      start: { label: "Start", icon: "🏁" },
+      treasure: { label: "Treasure", icon: "💎" },
+      trap: { label: "Trap", icon: "🪤" },
+      mini: { label: "Mini-Game", icon: "🎯" },
+      chaos: { label: "Chaos Card", icon: "🃏" },
+      trade: { label: "Trade", icon: "🤝" },
+      teleport: { label: "Teleport", icon: "🌀" }
+    };
+
+    const BOARD_SPACES = [
+      { type: "start", name: "Start Camp" },
+      { type: "treasure", name: "Golden Grove" },
+      { type: "trap", name: "Snake Pit" },
+      { type: "mini", name: "Cup Toss Cliff" },
+      { type: "chaos", name: "Stormy Idol" },
+      { type: "treasure", name: "Gem Creek" },
+      { type: "trade", name: "Market Hut" },
+      { type: "trap", name: "Quicksand" },
+      { type: "teleport", name: "Ancient Portal", destination: 22 },
+      { type: "treasure", name: "Pearl Beach" },
+      { type: "mini", name: "Stacking Ruins" },
+      { type: "chaos", name: "Jungle Drum" },
+      { type: "treasure", name: "Crystal Bridge" },
+      { type: "trap", name: "Falling Vines" },
+      { type: "trade", name: "Trader's Canoe" },
+      { type: "mini", name: "Memory Shrine" },
+      { type: "treasure", name: "Sunken Chest" },
+      { type: "chaos", name: "Mystery Map" },
+      { type: "trap", name: "Rolling Boulder" },
+      { type: "treasure", name: "Topaz Trail" },
+      { type: "mini", name: "Balance Log" },
+      { type: "trade", name: "Swap Dock" },
+      { type: "teleport", name: "Temple Tunnel", destination: 8 },
+      { type: "chaos", name: "Cursed Compass" },
+      { type: "treasure", name: "Emerald Ferns" },
+      { type: "mini", name: "Quick Draw Rock" },
+      { type: "trap", name: "Coconut Bonk" },
+      { type: "treasure", name: "Hidden Cache" },
+      { type: "chaos", name: "Wild Totem" },
+      { type: "mini", name: "Treasure Grab Grove" },
+      { type: "trade", name: "Bridge Bazaar" },
+      { type: "treasure", name: "Final Chest" }
+    ];
+
+    const MINI_GAMES = [
+      { id: "cupToss", name: "Cup Toss", run: runCupToss },
+      { id: "diceDuel", name: "Dice Duel", run: runDiceDuel },
+      { id: "speedStack", name: "Speed Stack", run: runSpeedStack },
+      { id: "memoryFlash", name: "Memory Flash", run: runMemoryFlash },
+      { id: "balanceChallenge", name: "Balance Challenge", run: runBalanceChallenge },
+      { id: "quickDraw", name: "Quick Draw", run: runQuickDraw },
+      { id: "treasureGrab", name: "Treasure Grab", run: runTreasureGrab }
+    ];
+
+    const CHAOS_CARDS = [
+      {
+        name: "Treasure Swap",
+        text: "Swap treasures with any player.",
+        run: async () => {
+          const current = getCurrentPlayer();
+          const others = players.filter(p => p.id !== current.id);
+          if (!others.length) return;
+          await choosePlayerModal("Treasure Swap", "Choose a player to swap treasure counts with.", others, target => {
+            const old = current.treasures;
+            current.treasures = target.treasures;
+            target.treasures = old;
+            playSound("treasure");
+            log(`${current.name} swapped treasure counts with ${target.name}.`);
+          });
+        }
+      },
+      {
+        name: "Earthquake",
+        text: "All players move back 2 spaces.",
+        run: async () => {
+          playSound("trap");
+          log("Earthquake shakes the map. Everyone slides back 2 spaces.");
+          for (const player of players) {
+            player.position = wrapPosition(player.position - CONFIG.earthquakeBackSteps);
+            updateTokens();
+            await wait(180);
+          }
+        }
+      },
+      {
+        name: "Treasure Rain",
+        text: "Clickable gems burst onto the screen. Collect fast.",
+        run: async () => {
+          await runTreasureRain();
+        }
+      },
+      {
+        name: "Freeze Tag",
+        text: "Choose one player to lose their next turn.",
+        run: async () => {
+          const current = getCurrentPlayer();
+          const targets = players.filter(p => p.id !== current.id);
+          if (!targets.length) return;
+          await choosePlayerModal("Freeze Tag", "Choose one player to freeze for their next turn.", targets, target => {
+            target.skipTurn = true;
+            playSound("trap");
+            log(`${target.name} is frozen and will skip their next turn.`);
+          });
+        }
+      },
+      {
+        name: "Sneaky Sneaky",
+        text: "Take one treasure from the board without moving.",
+        run: async () => {
+          const current = getCurrentPlayer();
+          addTreasure(current, 1);
+          log(`${current.name} quietly snatched a board treasure without moving.`);
+        }
+      }
+    ];
+
+    const state = {
+      screen: "title",
+      currentPlayerIndex: 0,
+      gameStarted: false,
+      busy: false,
+      gameOver: false,
+      lastMiniGameIndex: -1,
+      audioReady: false
+    };
+
+    let players = [];
+    let audioContext = null;
+
+    const els = {
+      titleScreen: document.getElementById("titleScreen"),
+      setupScreen: document.getElementById("setupScreen"),
+      gameScreen: document.getElementById("gameScreen"),
+      playerCount: document.getElementById("playerCount"),
+      playerNameFields: document.getElementById("playerNameFields"),
+      beginGameBtn: document.getElementById("beginGameBtn"),
+      backTitleBtn: document.getElementById("backTitleBtn"),
+      startSetupBtn: document.getElementById("startSetupBtn"),
+      setupFromTitleBtn: document.getElementById("setupFromTitleBtn"),
+      titleRulesBtn: document.getElementById("titleRulesBtn"),
+      rulesBtn: document.getElementById("rulesBtn"),
+      restartBtn: document.getElementById("restartBtn"),
+      board: document.getElementById("board"),
+      die: document.getElementById("die"),
+      rollBtn: document.getElementById("rollBtn"),
+      actionHint: document.getElementById("actionHint"),
+      playersList: document.getElementById("playersList"),
+      turnBanner: document.getElementById("turnBanner"),
+      log: document.getElementById("log"),
+      legend: document.getElementById("legend"),
+      modalOverlay: document.getElementById("modalOverlay"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalBody: document.getElementById("modalBody"),
+      modalActions: document.getElementById("modalActions"),
+      toast: document.getElementById("toast"),
+      winBurst: document.getElementById("winBurst")
+    };
+
+    function init() {
+      renderSetupFields();
+      renderBoard();
+      renderLegend();
+      wireEvents();
+      showRules(false);
+    }
+
+    function wireEvents() {
+      els.startSetupBtn.addEventListener("click", startGame);
+      els.setupFromTitleBtn.addEventListener("click", () => showScreen("setup"));
+      els.backTitleBtn.addEventListener("click", () => showScreen("title"));
+      els.beginGameBtn.addEventListener("click", startGame);
+      els.restartBtn.addEventListener("click", () => {
+        closeModal();
+        state.gameOver = false;
+        els.winBurst.classList.remove("active");
+        startGame();
+      });
+      els.rulesBtn.addEventListener("click", () => showRules(true));
+      els.titleRulesBtn.addEventListener("click", () => showRules(true));
+      els.playerCount.addEventListener("change", renderSetupFields);
+      els.rollBtn.addEventListener("click", takeTurn);
+      document.addEventListener("pointerdown", unlockAudio, { once: true });
+      window.addEventListener("keydown", event => {
+        if (event.key === "Escape" && els.modalOverlay.classList.contains("active")) closeModal();
+      });
+    }
+
+    function showScreen(name) {
+      state.screen = name;
+      [els.titleScreen, els.setupScreen, els.gameScreen].forEach(screen => screen.classList.remove("active"));
+      document.getElementById(`${name}Screen`).classList.add("active");
+    }
+
+    function renderSetupFields() {
+      const count = Number(els.playerCount.value);
+      els.playerNameFields.innerHTML = "";
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("label");
+        row.className = "setup-row";
+        row.innerHTML = `
+          <span>Player ${i + 1}</span>
+          <input type="text" id="playerName${i}" maxlength="16" value="${PLAYER_SETTINGS[i].name}">
+        `;
+        els.playerNameFields.appendChild(row);
+      }
+    }
+
+    function renderBoard() {
+      els.board.querySelectorAll(".space,.token").forEach(node => node.remove());
+      BOARD_SPACES.forEach((space, index) => {
+        const pos = getBoardPoint(index);
+        const node = document.createElement("div");
+        node.className = `space ${space.type} ${pos.edge}`;
+        node.dataset.index = index;
+        node.title = `${index}: ${space.name} (${SPACE_TYPES[space.type].label})`;
+        node.style.left = `${pos.x}%`;
+        node.style.top = `${pos.y}%`;
+        node.innerHTML = `
+          <span class="space-icon">${SPACE_TYPES[space.type].icon}</span>
+          <span class="space-name">${space.name}</span>
+          <span class="space-index">${index}</span>
+        `;
+        els.board.appendChild(node);
+      });
+    }
+
+    function renderLegend() {
+      els.legend.innerHTML = Object.entries(SPACE_TYPES).map(([type, data]) => `
+        <div class="legend-item">
+          <span class="legend-dot ${type}">${data.icon}</span>
+          <span>${data.label}</span>
+        </div>
+      `).join("");
+    }
+
+    function startGame() {
+      unlockAudio();
+      const count = Number(els.playerCount.value);
+      players = Array.from({ length: count }, (_, i) => ({
+        id: i,
+        name: (document.getElementById(`playerName${i}`).value || PLAYER_SETTINGS[i].name).trim(),
+        color: PLAYER_SETTINGS[i].color,
+        icon: PLAYER_SETTINGS[i].icon,
+        position: 0,
+        treasures: 0,
+        skipTurn: false,
+        inTemple: false,
+        crossedStart: false
+      }));
+      state.currentPlayerIndex = 0;
+      state.gameStarted = true;
+      state.gameOver = false;
+      state.busy = false;
+      els.log.innerHTML = "";
+      els.die.textContent = "?";
+      renderPlayerCards();
+      renderTokens();
+      updateTurnUI();
+      addLog("The expedition begins at Start Camp.");
+      showScreen("game");
+    }
+
+    function renderTokens() {
+      els.board.querySelectorAll(".token").forEach(node => node.remove());
+      players.forEach(player => {
+        const token = document.createElement("div");
+        token.className = "token";
+        token.id = `token-${player.id}`;
+        token.style.background = `linear-gradient(180deg, ${player.color}, ${shade(player.color, -28)})`;
+        token.textContent = player.icon;
+        els.board.appendChild(token);
+      });
+      updateTokens();
+    }
+
+    function updateTokens() {
+      players.forEach((player, stackIndex) => {
+        const token = document.getElementById(`token-${player.id}`);
+        if (!token) return;
+        const pos = player.inTemple ? { x: 50, y: 52 } : getBoardPoint(player.position);
+        const offset = tokenOffset(player.id, players.length);
+        token.style.left = `calc(${pos.x}% + ${offset.x}px)`;
+        token.style.top = `calc(${pos.y}% + ${offset.y}px)`;
+        token.classList.toggle("active-token", stackIndex === state.currentPlayerIndex && !state.gameOver);
+      });
+      renderPlayerCards();
+    }
+
+    function tokenOffset(index, total) {
+      const angle = (Math.PI * 2 * index) / Math.max(total, 1);
+      return { x: Math.cos(angle) * 13, y: Math.sin(angle) * 13 };
+    }
+
+    function getBoardPoint(index) {
+      const cornerLow = 8.7;
+      const cornerHigh = 91.3;
+      const step = (cornerHigh - cornerLow) / 8;
+
+      if (index === 0) return { x: cornerHigh, y: cornerHigh, edge: "corner corner-start" };
+      if (index > 0 && index < 8) return { x: cornerHigh - index * step, y: cornerHigh, edge: "edge-bottom" };
+      if (index === 8) return { x: cornerLow, y: cornerHigh, edge: "corner" };
+      if (index > 8 && index < 16) return { x: cornerLow, y: cornerHigh - (index - 8) * step, edge: "edge-left" };
+      if (index === 16) return { x: cornerLow, y: cornerLow, edge: "corner" };
+      if (index > 16 && index < 24) return { x: cornerLow + (index - 16) * step, y: cornerLow, edge: "edge-top" };
+      if (index === 24) return { x: cornerHigh, y: cornerLow, edge: "corner" };
+      return { x: cornerHigh, y: cornerLow + (index - 24) * step, edge: "edge-right" };
+    }
+
+    function renderPlayerCards() {
+      els.playersList.innerHTML = players.map((player, index) => `
+        <div class="player-card ${index === state.currentPlayerIndex && !state.gameOver ? "current" : ""}">
+          <span class="mini-token" style="background:${player.color}">${player.icon}</span>
+          <div>
+            <p class="player-name">${player.name}</p>
+            <div class="player-stats">
+              <span class="stat-pill">💎 ${player.treasures}/${CONFIG.treasureTarget}</span>
+              <span class="stat-pill">Space ${player.inTemple ? "Temple" : player.position}</span>
+              ${player.skipTurn ? `<span class="stat-pill">Frozen</span>` : ""}
+            </div>
+          </div>
+          <strong>${index === state.currentPlayerIndex && !state.gameOver ? "TURN" : ""}</strong>
+        </div>
+      `).join("");
+    }
+
+    async function takeTurn() {
+      if (state.busy || state.gameOver) return;
+      unlockAudio();
+      const player = getCurrentPlayer();
+      if (player.skipTurn) {
+        player.skipTurn = false;
+        log(`${player.name} thawed out and missed this turn.`);
+        playSound("trap");
+        endTurn();
+        return;
+      }
+
+      state.busy = true;
+      player.crossedStart = false;
+      setControls(false);
+      const roll = await rollDie();
+      log(`${player.name} rolled a ${roll}.`);
+      await movePlayer(player, roll);
+
+      if (await tryTempleWin(player)) return;
+      await triggerSpace(player);
+      if (!state.gameOver) endTurn();
+    }
+
+    async function rollDie() {
+      playSound("dice");
+      els.die.classList.add("rolling");
+      const start = performance.now();
+      while (performance.now() - start < CONFIG.diceRollTime) {
+        els.die.textContent = randomInt(1, 6);
+        await wait(70);
+      }
+      const value = randomInt(1, 6);
+      els.die.textContent = value;
+      els.die.classList.remove("rolling");
+      return value;
+    }
+
+    async function movePlayer(player, steps) {
+      for (let i = 0; i < steps; i++) {
+        player.position = wrapPosition(player.position + 1);
+        if (player.position === 0) player.crossedStart = true;
+        updateTokens();
+        await wait(CONFIG.moveDelay);
+      }
+    }
+
+    async function triggerSpace(player) {
+      const space = BOARD_SPACES[player.position];
+      log(`${player.name} landed on ${space.name}: ${SPACE_TYPES[space.type].label}.`);
+      switch (space.type) {
+        case "start":
+          log("Start Camp is calm. Collect 5 treasures, then pass Start to enter the Temple.");
+          break;
+        case "treasure":
+          addTreasure(player, 1);
+          log(`${player.name} found a treasure.`);
+          break;
+        case "trap":
+          await runTrap(player);
+          break;
+        case "mini":
+          await launchMiniGame();
+          break;
+        case "chaos":
+          await drawChaosCard();
+          break;
+        case "trade":
+          await runTrade(player);
+          break;
+        case "teleport":
+          await runTeleport(player, space.destination);
+          break;
+      }
+    }
+
+    async function tryTempleWin(player) {
+      if (player.treasures < CONFIG.treasureTarget) return false;
+      if (!player.crossedStart && player.position !== 0) {
+        log(`${player.name} has enough treasure. Reach or pass Start to open the bridge to the Temple.`);
+        return false;
+      }
+      player.inTemple = true;
+      updateTokens();
+      playSound("win");
+      els.winBurst.classList.add("active");
+      state.gameOver = true;
+      state.busy = false;
+      setControls(false);
+      log(`${player.name} reached the Treasure Temple with ${player.treasures} treasures and wins!`);
+      showModal("Temple Claimed", `
+        <div class="mini-stage">
+          <h3>${player.name} wins Treasure Scramble!</h3>
+          <p>${player.name} carried ${player.treasures} treasures into the center Treasure Temple.</p>
+        </div>
+      `, [
+        { label: "Play Again", className: "", onClick: () => { closeModal(); els.winBurst.classList.remove("active"); startGame(); } },
+        { label: "Close", className: "ghost", onClick: closeModal }
+      ]);
+      return true;
+    }
+
+    async function runTrap(player) {
+      const traps = [
+        async () => {
+          const lost = removeTreasure(player, 1);
+          log(lost ? `${player.name} lost 1 treasure to a sneaky trap.` : `${player.name} had no treasures to lose.`);
+        },
+        async () => {
+          log(`${player.name} tumbles backward ${CONFIG.trapBackSteps} spaces.`);
+          playSound("trap");
+          for (let i = 0; i < CONFIG.trapBackSteps; i++) {
+            player.position = wrapPosition(player.position - 1);
+            updateTokens();
+            await wait(220);
+          }
+        },
+        async () => {
+          player.skipTurn = true;
+          log(`${player.name} is tangled in vines and will skip next turn.`);
+        }
+      ];
+      playSound("trap");
+      await sample(traps)();
+    }
+
+    async function runTeleport(player, destination) {
+      playSound("teleport");
+      log(`${player.name} vanished through a portal to ${BOARD_SPACES[destination].name}.`);
+      await wait(260);
+      player.position = destination;
+      updateTokens();
+      await wait(260);
+    }
+
+    async function drawChaosCard() {
+      const card = sample(CHAOS_CARDS);
+      playSound("chaos");
+      await showModal("Chaos Card", `
+        <div class="mini-stage">
+          <h3>${card.name}</h3>
+          <p>${card.text}</p>
+        </div>
+      `, [{ label: "Resolve Card", className: "", onClick: closeModal }], true);
+      log(`Chaos Card drawn: ${card.name}.`);
+      await card.run();
+    }
+
+    async function runTrade(player) {
+      const others = players.filter(p => p.id !== player.id);
+      if (!others.length) return;
+      if (player.treasures === 0 && others.every(p => p.treasures === 0)) {
+        log("Trade space fizzled because nobody has treasures yet.");
+        return;
+      }
+      await choosePlayerModal("Trade Space", "Choose a player. You may give or take 1 treasure if possible.", others, target => {
+        const canTake = target.treasures > 0;
+        const canGive = player.treasures > 0;
+        return chooseTradeAction(player, target, canTake, canGive);
+      });
+    }
+
+    function chooseTradeAction(player, target, canTake, canGive) {
+      return new Promise(resolve => {
+        showModal("Trade Choice", `
+          <div class="mini-stage">
+            <h3>${player.name} and ${target.name}</h3>
+            <p>Pick one fair trade action.</p>
+          </div>
+        `, [
+          { label: `Take 1 from ${target.name}`, className: "", disabled: !canTake, onClick: () => {
+            target.treasures -= 1;
+            player.treasures += 1;
+            playSound("treasure");
+            log(`${player.name} traded for 1 treasure from ${target.name}.`);
+            closeModal();
+            renderPlayerCards();
+            resolve();
+          }},
+          { label: `Give 1 to ${target.name}`, className: "secondary", disabled: !canGive, onClick: () => {
+            player.treasures -= 1;
+            target.treasures += 1;
+            playSound("treasure");
+            log(`${player.name} gave 1 treasure to ${target.name}.`);
+            closeModal();
+            renderPlayerCards();
+            resolve();
+          }},
+          { label: "No Trade", className: "ghost", onClick: () => { closeModal(); resolve(); } }
+        ]);
+      });
+    }
+
+    async function launchMiniGame() {
+      state.lastMiniGameIndex = (state.lastMiniGameIndex + 1 + randomInt(0, MINI_GAMES.length - 1)) % MINI_GAMES.length;
+      const mini = MINI_GAMES[state.lastMiniGameIndex];
+      log(`Mini-game launched: ${mini.name}.`);
+      await mini.run();
+      renderPlayerCards();
+    }
+
+    async function runCupToss() {
+      const player = getCurrentPlayer();
+      let hits = 0;
+      let tries = 0;
+      return new Promise(resolve => {
+        showModal("Cup Toss", `
+          <div class="mini-stage">
+            <p>${player.name}, stop the marker near the center. Land ${CONFIG.cupTossNeedHits} tosses in 5 tries.</p>
+            <div class="target-ring"><div class="aim-marker" id="aimMarker"></div></div>
+            <p id="cupTossScore">Hits: 0 / ${CONFIG.cupTossNeedHits} | Tosses: 0 / 5</p>
+          </div>
+        `, [
+          { label: "Toss", className: "", onClick: () => {
+            const marker = document.getElementById("aimMarker");
+            const matrix = getComputedStyle(marker).transform;
+            const angle = extractRotation(matrix);
+            tries++;
+            if (Math.abs(angle) < 18) {
+              hits++;
+              playSound("treasure");
+              toast("Clean toss!");
+            } else {
+              playSound("trap");
+              toast("Rim bounce!");
+            }
+            document.getElementById("cupTossScore").textContent = `Hits: ${hits} / ${CONFIG.cupTossNeedHits} | Tosses: ${tries} / 5`;
+            if (hits >= CONFIG.cupTossNeedHits || tries >= 5) {
+              if (hits >= CONFIG.cupTossNeedHits) rewardMiniWinner(player, "Cup Toss");
+              else log(`${player.name} missed the Cup Toss reward.`);
+              closeModal();
+              resolve();
+            }
+          }},
+          { label: "Skip Mini-Game", className: "ghost", onClick: () => { log(`${player.name} skipped Cup Toss.`); closeModal(); resolve(); } }
+        ]);
+      });
+    }
+
+    async function runDiceDuel() {
+      const player = getCurrentPlayer();
+      const opponents = players.filter(p => p.id !== player.id);
+      const opponent = sample(opponents);
+      const playerRoll = randomInt(1, 6);
+      const opponentRoll = randomInt(1, 6);
+      const winner = playerRoll >= opponentRoll ? player : opponent;
+      playSound("dice");
+      await showModal("Dice Duel", `
+        <div class="mini-stage">
+          <h3>${player.name} vs ${opponent.name}</h3>
+          <p>${player.name} rolled ${playerRoll}. ${opponent.name} rolled ${opponentRoll}.</p>
+          <p>${winner.name} wins the duel treasure.</p>
+        </div>
+      `, [{ label: "Claim Reward", className: "", onClick: closeModal }], true);
+      rewardMiniWinner(winner, "Dice Duel");
+    }
+
+    async function runSpeedStack() {
+      const player = getCurrentPlayer();
+      let step = 0;
+      let done = false;
+      return new Promise(resolve => {
+        showModal("Speed Stack", `
+          <div class="mini-stage">
+            <p>Click cups 1, 2, 3, then 3, 2, 1 in under ${CONFIG.speedStackSeconds} seconds.</p>
+            <div class="timer-bar"><div class="timer-fill" id="speedTimer"></div></div>
+            <div class="cup-row">
+              <button class="cup" data-cup="1" aria-label="Cup 1"></button>
+              <button class="cup" data-cup="2" aria-label="Cup 2"></button>
+              <button class="cup" data-cup="3" aria-label="Cup 3"></button>
+            </div>
+            <p id="stackPrompt">Next: Cup 1</p>
+          </div>
+        `, [{ label: "Give Up", className: "ghost", onClick: () => finish(false) }]);
+        const sequence = ["1", "2", "3", "3", "2", "1"];
+        const timer = document.getElementById("speedTimer");
+        timer.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: CONFIG.speedStackSeconds * 1000, fill: "forwards", easing: "linear" });
+        const timeout = setTimeout(() => finish(false), CONFIG.speedStackSeconds * 1000);
+        document.querySelectorAll(".cup").forEach(cup => cup.addEventListener("click", () => {
+          if (done) return;
+          if (cup.dataset.cup === sequence[step]) {
+            cup.classList.toggle("done", step < 3);
+            step++;
+            playSound("click");
+            if (step >= sequence.length) finish(true);
+            else document.getElementById("stackPrompt").textContent = `Next: Cup ${sequence[step]}`;
+          } else {
+            playSound("trap");
+            step = 0;
+            document.querySelectorAll(".cup").forEach(node => node.classList.remove("done"));
+            document.getElementById("stackPrompt").textContent = "Oops. Restart: Cup 1";
+          }
+        }));
+        function finish(won) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          if (won) rewardMiniWinner(player, "Speed Stack");
+          else log(`${player.name} ran out of time in Speed Stack.`);
+          closeModal();
+          resolve();
+        }
+      });
+    }
+
+    async function runMemoryFlash() {
+      const player = getCurrentPlayer();
+      const icons = ["💎", "🗝️", "🏺", "👑", "🧭", "🪙", "🔥", "🌴", "🐚"];
+      const shown = shuffle(icons).slice(0, 5);
+      const options = shuffle([...shown, ...shuffle(icons.filter(icon => !shown.includes(icon))).slice(0, 3)]);
+      const selected = new Set();
+      return new Promise(resolve => {
+        showModal("Memory Flash", `
+          <div class="mini-stage">
+            <p>Memorize these 5 items. You need at least ${CONFIG.memoryNeedCorrect} correct.</p>
+            <div class="timer-bar"><div class="timer-fill" id="memoryTimer"></div></div>
+            <div class="memory-row" id="memoryItems">${shown.map(icon => `<div class="memory-item">${icon}</div>`).join("")}</div>
+          </div>
+        `, []);
+        document.getElementById("memoryTimer").animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: CONFIG.memoryShowSeconds * 1000, fill: "forwards", easing: "linear" });
+        setTimeout(() => {
+          showModal("Memory Flash", `
+            <div class="mini-stage">
+              <p>Select the items you saw. Choose carefully.</p>
+              <div class="memory-row">${options.map(icon => `<button class="memory-item" data-memory="${icon}">${icon}</button>`).join("")}</div>
+              <p id="memoryScore">Selected 0 / 5</p>
+            </div>
+          `, [{ label: "Submit", className: "", onClick: finish }]);
+          document.querySelectorAll("[data-memory]").forEach(button => button.addEventListener("click", () => {
+            const value = button.dataset.memory;
+            if (selected.has(value)) {
+              selected.delete(value);
+              button.style.outline = "";
+            } else if (selected.size < 5) {
+              selected.add(value);
+              button.style.outline = "5px solid #27b95f";
+            }
+            document.getElementById("memoryScore").textContent = `Selected ${selected.size} / 5`;
+          }));
+        }, CONFIG.memoryShowSeconds * 1000);
+        function finish() {
+          const correct = [...selected].filter(icon => shown.includes(icon)).length;
+          if (correct >= CONFIG.memoryNeedCorrect) rewardMiniWinner(player, "Memory Flash");
+          else log(`${player.name} remembered ${correct}; Memory Flash needed ${CONFIG.memoryNeedCorrect}.`);
+          closeModal();
+          resolve();
+        }
+      });
+    }
+
+    async function runBalanceChallenge() {
+      const player = getCurrentPlayer();
+      let pos = 50;
+      let velocity = randomBetween(-1.3, 1.3);
+      let held = 0;
+      let raf = 0;
+      let last = performance.now();
+      let done = false;
+      return new Promise(resolve => {
+        showModal("Balance Challenge", `
+          <div class="mini-stage">
+            <p>Use ← and → keys, or tap the buttons, to keep the orb in the center for ${CONFIG.balanceSeconds} seconds.</p>
+            <div class="balance-track">
+              <div class="balance-zone"></div>
+              <div class="balance-orb" id="balanceOrb"></div>
+            </div>
+            <p id="balanceScore">Balanced: 0.0s</p>
+            <div class="mini-actions">
+              <button class="secondary" id="balanceLeft">Left</button>
+              <button class="secondary" id="balanceRight">Right</button>
+            </div>
+          </div>
+        `, [{ label: "Stop", className: "ghost", onClick: () => finish(false) }]);
+        const keys = { left: false, right: false };
+        const leftBtn = document.getElementById("balanceLeft");
+        const rightBtn = document.getElementById("balanceRight");
+        const setLeft = value => { keys.left = value; };
+        const setRight = value => { keys.right = value; };
+        leftBtn.addEventListener("pointerdown", () => setLeft(true));
+        leftBtn.addEventListener("pointerup", () => setLeft(false));
+        rightBtn.addEventListener("pointerdown", () => setRight(true));
+        rightBtn.addEventListener("pointerup", () => setRight(false));
+        const keydown = e => {
+          if (e.key === "ArrowLeft") keys.left = true;
+          if (e.key === "ArrowRight") keys.right = true;
+        };
+        const keyup = e => {
+          if (e.key === "ArrowLeft") keys.left = false;
+          if (e.key === "ArrowRight") keys.right = false;
+        };
+        window.addEventListener("keydown", keydown);
+        window.addEventListener("keyup", keyup);
+        loop();
+        function loop() {
+          if (done) return;
+          const now = performance.now();
+          const dt = Math.min(40, now - last) / 16.67;
+          last = now;
+          velocity += randomBetween(-.08, .08) * dt;
+          if (keys.left) velocity -= .22 * dt;
+          if (keys.right) velocity += .22 * dt;
+          velocity *= .985;
+          pos += velocity * dt;
+          if (pos < 3 || pos > 97) {
+            finish(false);
+            return;
+          }
+          const orb = document.getElementById("balanceOrb");
+          if (orb) orb.style.left = `${pos}%`;
+          if (pos >= 39 && pos <= 61) held += (now - (last - dt * 16.67)) / 1000;
+          else held = Math.max(0, held - .05);
+          const score = document.getElementById("balanceScore");
+          if (score) score.textContent = `Balanced: ${held.toFixed(1)}s`;
+          if (held >= CONFIG.balanceSeconds) {
+            finish(true);
+            return;
+          }
+          raf = requestAnimationFrame(loop);
+        }
+        function finish(won) {
+          if (done) return;
+          done = true;
+          cancelAnimationFrame(raf);
+          window.removeEventListener("keydown", keydown);
+          window.removeEventListener("keyup", keyup);
+          if (won) rewardMiniWinner(player, "Balance Challenge");
+          else log(`${player.name} lost balance before the reward.`);
+          closeModal();
+          resolve();
+        }
+      });
+    }
+
+    async function runQuickDraw() {
+      const target = randomInt(10, 99);
+      let winner = null;
+      let ready = false;
+      return new Promise(resolve => {
+        showModal("Quick Draw", `
+          <div class="mini-stage">
+            <p>When the number appears, type it and press Enter. Fastest correct player wins.</p>
+            <h3 id="quickNumber">Get ready...</h3>
+            <input id="quickInput" type="number" placeholder="Number" disabled>
+            <p id="quickStatus">Wait for it.</p>
+          </div>
+        `, [{ label: "Cancel", className: "ghost", onClick: () => { closeModal(); resolve(); } }]);
+        const delay = randomInt(900, 2300);
+        const input = document.getElementById("quickInput");
+        const started = performance.now() + delay;
+        setTimeout(() => {
+          ready = true;
+          document.getElementById("quickNumber").textContent = target;
+          document.getElementById("quickStatus").textContent = "Go!";
+          input.disabled = false;
+          input.focus();
+        }, delay);
+        input.addEventListener("keydown", event => {
+          if (event.key !== "Enter") return;
+          if (!ready) return;
+          const value = Number(input.value);
+          if (value === target) {
+            const elapsed = ((performance.now() - started) / 1000).toFixed(2);
+            winner = getCurrentPlayer();
+            rewardMiniWinner(winner, `Quick Draw in ${elapsed}s`);
+            closeModal();
+            resolve();
+          } else {
+            playSound("trap");
+            input.value = "";
+            document.getElementById("quickStatus").textContent = "Wrong number. Try again.";
+          }
+        });
+      });
+    }
+
+    async function runTreasureGrab() {
+      const scores = new Map(players.map(p => [p.id, 0]));
+      let acceptingClicks = true;
+      return new Promise(resolve => {
+        showModal("Treasure Grab", `
+          <div class="mini-stage">
+            <p>Everyone clicks their color gem for ${CONFIG.treasureGrabSeconds} seconds. Highest count wins.</p>
+            <div class="timer-bar"><div class="timer-fill" id="grabTimer"></div></div>
+            <div class="gem-field">
+              ${players.map(p => `
+                <button class="grab-pad" data-grabber="${p.id}" style="background:linear-gradient(180deg, ${p.color}, ${shade(p.color, -28)});">
+                  <strong>💎</strong>
+                  <span>${p.name}</span>
+                </button>
+              `).join("")}
+            </div>
+            <p id="grabScore">${scoreLine(scores)}</p>
+          </div>
+        `, []);
+        document.getElementById("grabTimer").animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: CONFIG.treasureGrabSeconds * 1000, fill: "forwards", easing: "linear" });
+        document.querySelectorAll("[data-grabber]").forEach(button => button.addEventListener("click", () => {
+          if (!acceptingClicks) return;
+          const scorer = players.find(p => p.id === Number(button.dataset.grabber));
+          scores.set(scorer.id, scores.get(scorer.id) + 1);
+          playSound("click");
+          document.getElementById("grabScore").textContent = scoreLine(scores);
+        }));
+        setTimeout(() => {
+          acceptingClicks = false;
+          const high = Math.max(...scores.values());
+          const winners = players.filter(p => scores.get(p.id) === high);
+          const winner = sample(winners);
+          if (high > 0) rewardMiniWinner(winner, "Treasure Grab");
+          else log("No gems were grabbed.");
+          closeModal();
+          resolve();
+        }, CONFIG.treasureGrabSeconds * 1000);
+      });
+    }
+
+    async function runTreasureRain() {
+      const player = getCurrentPlayer();
+      let count = 0;
+      return new Promise(resolve => {
+        showModal("Treasure Rain", `
+          <div class="mini-stage" id="rainStage" style="position:relative">
+            <p>${player.name}, click falling gems for ${CONFIG.treasureRainSeconds} seconds. Every 3 gems becomes 1 treasure.</p>
+            <div class="timer-bar"><div class="timer-fill" id="rainTimer"></div></div>
+            <p id="rainScore">Gems: 0</p>
+          </div>
+        `, []);
+        const stage = document.getElementById("rainStage");
+        document.getElementById("rainTimer").animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: CONFIG.treasureRainSeconds * 1000, fill: "forwards", easing: "linear" });
+        const spawn = setInterval(() => spawnGem(stage, gem => {
+          count++;
+          gem.remove();
+          playSound("click");
+          document.getElementById("rainScore").textContent = `Gems: ${count}`;
+        }), 180);
+        setTimeout(() => {
+          clearInterval(spawn);
+          const reward = Math.min(2, Math.floor(count / 3));
+          if (reward) {
+            addTreasure(player, reward);
+            log(`${player.name} collected ${count} falling gems for ${reward} treasure.`);
+          } else {
+            log(`${player.name} collected ${count} falling gems but did not make a full treasure.`);
+          }
+          closeModal();
+          resolve();
+        }, CONFIG.treasureRainSeconds * 1000);
+      });
+    }
+
+    function spawnGem(stage, onClick) {
+      const gem = document.createElement("button");
+      gem.className = "gem";
+      gem.type = "button";
+      gem.style.left = `${randomInt(7, 86)}%`;
+      gem.style.top = `${randomInt(28, 80)}%`;
+      gem.setAttribute("aria-label", "Gem");
+      gem.addEventListener("click", () => onClick(gem));
+      stage.appendChild(gem);
+      setTimeout(() => gem.remove(), 950);
+    }
+
+    function rewardMiniWinner(player, gameName) {
+      addTreasure(player, 1);
+      log(`${player.name} won ${gameName} and earned 1 treasure.`);
+    }
+
+    function addTreasure(player, amount) {
+      player.treasures += amount;
+      playSound("treasure");
+      renderPlayerCards();
+      toast(`+${amount} treasure for ${player.name}`);
+    }
+
+    function removeTreasure(player, amount) {
+      const before = player.treasures;
+      player.treasures = Math.max(0, player.treasures - amount);
+      renderPlayerCards();
+      return before !== player.treasures;
+    }
+
+    function endTurn() {
+      state.currentPlayerIndex = (state.currentPlayerIndex + 1) % players.length;
+      state.busy = false;
+      setControls(true);
+      updateTurnUI();
+    }
+
+    function updateTurnUI() {
+      const player = getCurrentPlayer();
+      els.turnBanner.textContent = `${player.name}'s turn${player.skipTurn ? " - frozen!" : ""}`;
+      els.actionHint.textContent = player.treasures >= CONFIG.treasureTarget
+        ? "You have enough treasure. Reach or pass Start to enter the Temple."
+        : "Roll, move, and the space triggers automatically.";
+      updateTokens();
+    }
+
+    function setControls(enabled) {
+      els.rollBtn.disabled = !enabled || state.gameOver;
+    }
+
+    function getCurrentPlayer() {
+      return players[state.currentPlayerIndex];
+    }
+
+    function wrapPosition(value) {
+      const total = BOARD_SPACES.length;
+      return ((value % total) + total) % total;
+    }
+
+    function addLog(message) {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.textContent = message;
+      els.log.prepend(entry);
+    }
+
+    function log(message) {
+      addLog(message);
+    }
+
+    function showRules(open) {
+      const rulesHtml = `
+        <p><strong>Goal:</strong> collect ${CONFIG.treasureTarget} treasures, then reach or pass Start to open the bridge into the center Treasure Temple.</p>
+        <div class="help-grid">
+          <div><strong>💎 Treasure:</strong> gain 1 treasure.</div>
+          <div><strong>🪤 Trap:</strong> lose treasure, move back, or skip next turn.</div>
+          <div><strong>🎯 Mini-Game:</strong> play a quick digital challenge for treasure.</div>
+          <div><strong>🃏 Chaos:</strong> draw a fair but unpredictable card.</div>
+          <div><strong>🤝 Trade:</strong> give or take 1 treasure with another player.</div>
+          <div><strong>🌀 Teleport:</strong> jump to the linked portal.</div>
+        </div>
+        <p>Mini-games include Cup Toss, Dice Duel, Speed Stack, Memory Flash, Balance Challenge, Quick Draw, and Treasure Grab.</p>
+      `;
+      if (open) {
+        showModal("Rules", rulesHtml, [{ label: "Got It", className: "", onClick: closeModal }]);
+      }
+    }
+
+    function showModal(title, bodyHtml, actions = [], waitForClose = false) {
+      els.modalTitle.textContent = title;
+      els.modalBody.innerHTML = bodyHtml;
+      els.modalActions.innerHTML = "";
+      let resolver = null;
+      const promise = new Promise(resolve => { resolver = resolve; });
+      actions.forEach(action => {
+        const button = document.createElement("button");
+        button.textContent = action.label;
+        button.className = action.className || "";
+        button.disabled = Boolean(action.disabled);
+        button.addEventListener("click", () => {
+          action.onClick?.();
+          if (waitForClose) resolver();
+        });
+        els.modalActions.appendChild(button);
+      });
+      els.modalOverlay.classList.add("active");
+      return waitForClose ? promise : Promise.resolve();
+    }
+
+    function closeModal() {
+      els.modalOverlay.classList.remove("active");
+    }
+
+    function choosePlayerModal(title, text, choices, onChoose) {
+      return new Promise(resolve => {
+        showModal(title, `
+          <div class="mini-stage">
+            <p>${text}</p>
+            <div class="choice-row">
+              ${choices.map(p => `<button data-choice="${p.id}" style="background:${p.color};box-shadow:0 5px 0 ${shade(p.color, -35)}">${p.name}</button>`).join("")}
+            </div>
+          </div>
+        `, [{ label: "Cancel", className: "ghost", onClick: () => { closeModal(); resolve(); } }]);
+        document.querySelectorAll("[data-choice]").forEach(button => button.addEventListener("click", async () => {
+          const chosen = players.find(p => p.id === Number(button.dataset.choice));
+          closeModal();
+          await onChoose(chosen);
+          resolve();
+        }));
+      });
+    }
+
+    function toast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => els.toast.classList.remove("show"), 1300);
+    }
+
+    function unlockAudio() {
+      if (state.audioReady) return;
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        state.audioReady = true;
+      } catch (error) {
+        state.audioReady = false;
+      }
+    }
+
+    function playSound(type) {
+      if (!state.audioReady || !audioContext) return;
+      const sounds = {
+        dice: [220, .05, "square"],
+        treasure: [740, .09, "triangle"],
+        trap: [110, .12, "sawtooth"],
+        teleport: [440, .16, "sine"],
+        chaos: [330, .13, "square"],
+        click: [520, .035, "triangle"],
+        win: [880, .35, "triangle"]
+      };
+      const [freq, duration, typeName] = sounds[type] || sounds.click;
+      const now = audioContext.currentTime;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = typeName;
+      osc.frequency.setValueAtTime(freq, now);
+      if (type === "win") {
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + duration);
+      } else if (type === "teleport") {
+        osc.frequency.exponentialRampToValueAtTime(freq * 2.2, now + duration);
+      }
+      gain.gain.setValueAtTime(.0001, now);
+      gain.gain.exponentialRampToValueAtTime(.08, now + .01);
+      gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+      osc.connect(gain).connect(audioContext.destination);
+      osc.start(now);
+      osc.stop(now + duration + .02);
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function sample(list) {
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function shuffle(list) {
+      return [...list].sort(() => Math.random() - .5);
+    }
+
+    function scoresTotal(scores) {
+      return [...scores.values()].reduce((sum, value) => sum + value, 0);
+    }
+
+    function scoreLine(scores) {
+      return players.map(p => `${p.name}: ${scores.get(p.id)}`).join(" | ");
+    }
+
+    function extractRotation(matrix) {
+      if (!matrix || matrix === "none") return 0;
+      const values = matrix.match(/matrix\(([^)]+)\)/);
+      if (!values) return 0;
+      const [a, b] = values[1].split(",").map(Number);
+      return Math.round(Math.atan2(b, a) * (180 / Math.PI));
+    }
+
+    function shade(hex, percent) {
+      const value = hex.replace("#", "");
+      const num = parseInt(value, 16);
+      const amt = Math.round(2.55 * percent);
+      const r = Math.max(0, Math.min(255, (num >> 16) + amt));
+      const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+      const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+      return `#${(0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    }
+
+    init();
+  </script>
+</body>
+</html>
