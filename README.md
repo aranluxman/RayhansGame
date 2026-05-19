@@ -7,6 +7,7 @@ Open `index.html` in a browser to play locally, or deploy the repository as a st
 ## Gameplay
 
 - Roll one die and move around the board.
-- Collect 5 treasures.
-- Reach or pass Start after collecting 5 treasures to enter the center Treasure Temple and win.
+- Keep looping the board.
+- Win by collecting 5 treasures or completing 5 laps.
 - Spaces include treasures, traps, mini-games, chaos cards, trades, and teleports.
+- Mini-games now include bonus prizes, and Chaos Cards can move, swap, freeze, or scramble players.

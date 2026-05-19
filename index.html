@@ -431,6 +431,7 @@
       background-size: 18px 18px, 18px 18px, auto;
       box-shadow: 0 0 0 12px rgba(255, 236, 65, .28), 0 18px 35px rgba(65, 37, 13, .35);
       clip-path: none;
+      overflow: hidden;
     }
 
     .temple-center span {
@@ -438,6 +439,57 @@
       padding-top: 0;
       font-size: clamp(.76rem, 2vw, 1.2rem);
       text-shadow: 0 1px 0 rgba(255,255,255,.55);
+    }
+
+    .center-field {
+      position: absolute;
+      z-index: 4;
+      inset: 20%;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .center-bonus {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      border: 3px solid rgba(75, 43, 18, .7);
+      background: linear-gradient(180deg, #fff8d8, #edc15f);
+      box-shadow: 0 8px 0 rgba(70, 39, 13, .22);
+      font-size: 1.45rem;
+      animation: centerBob 2.8s ease-in-out infinite alternate;
+    }
+
+    .center-bonus.one { left: 8%; top: 12%; transform: rotate(-10deg); }
+    .center-bonus.two { right: 10%; top: 16%; transform: rotate(9deg); animation-delay: -.7s; }
+    .center-bonus.three { left: 14%; bottom: 11%; transform: rotate(7deg); animation-delay: -1.2s; }
+    .center-bonus.four { right: 13%; bottom: 12%; transform: rotate(-8deg); animation-delay: -1.7s; }
+
+    .lap-ribbon {
+      position: absolute;
+      left: 50%;
+      bottom: 17%;
+      transform: translateX(-50%);
+      width: min(250px, 50%);
+      padding: .45rem .55rem;
+      border: 3px solid #573416;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fff9db, #e9c46a);
+      box-shadow: 0 6px 0 rgba(72, 40, 14, .22);
+      color: #4a2a10;
+      font-weight: 1000;
+      text-align: center;
+      font-size: clamp(.56rem, 1.3vw, .78rem);
+      text-transform: uppercase;
+    }
+
+    @keyframes centerBob {
+      from { margin-top: 0; }
+      to { margin-top: -10px; }
     }
 
     .space {
@@ -1040,7 +1092,14 @@
           <div class="map-prop waterfall" aria-hidden="true">💦</div>
           <div class="map-prop palm" aria-hidden="true">🌴</div>
           <div class="map-prop idol" aria-hidden="true">🗿</div>
-          <div class="temple-center" id="templeCenter"><span>Treasure<br>Temple<br>5 💎</span></div>
+          <div class="center-field" aria-hidden="true">
+            <div class="center-bonus one">🎲</div>
+            <div class="center-bonus two">💎</div>
+            <div class="center-bonus three">⚡</div>
+            <div class="center-bonus four">🃏</div>
+            <div class="lap-ribbon">Win: 5 treasures or 5 laps</div>
+          </div>
+          <div class="temple-center" id="templeCenter"><span>Treasure<br>Rush<br>5 💎 / 5 Laps</span></div>
         </div>
       </section>
 
@@ -1089,6 +1148,7 @@
 
     const CONFIG = {
       treasureTarget: 5,
+      lapTarget: 5,
       minPlayers: 2,
       maxPlayers: 4,
       moveDelay: 360,
@@ -1101,7 +1161,9 @@
       balanceSeconds: 5,
       memoryShowSeconds: 10,
       memoryNeedCorrect: 4,
-      cupTossNeedHits: 2
+      cupTossNeedHits: 2,
+      miniBonusMoveMax: 3,
+      chaosShuffleMax: 6
     };
 
     const PLAYER_SETTINGS = [
@@ -1185,14 +1247,12 @@
       },
       {
         name: "Earthquake",
-        text: "All players move back 2 spaces.",
+        text: "All players slide back 2 spaces, even if they were feeling smug.",
         run: async () => {
           playSound("trap");
           log("Earthquake shakes the map. Everyone slides back 2 spaces.");
           for (const player of players) {
-            player.position = wrapPosition(player.position - CONFIG.earthquakeBackSteps);
-            updateTokens();
-            await wait(180);
+            await movePlayerBy(player, -CONFIG.earthquakeBackSteps, 150);
           }
         }
       },
@@ -1224,6 +1284,81 @@
           const current = getCurrentPlayer();
           addTreasure(current, 1);
           log(`${current.name} quietly snatched a board treasure without moving.`);
+        }
+      },
+      {
+        name: "Treasure Tornado",
+        text: "Everyone gets blown to a random nearby space.",
+        run: async () => {
+          playSound("teleport");
+          log("A Treasure Tornado whips around the board. Everybody gets tossed!");
+          for (const player of players) {
+            const shift = randomInt(-CONFIG.chaosShuffleMax, CONFIG.chaosShuffleMax);
+            log(`${player.name} was blown ${shift >= 0 ? "forward" : "back"} ${Math.abs(shift)} spaces.`);
+            await movePlayerBy(player, shift, 105);
+          }
+        }
+      },
+      {
+        name: "Portal Party",
+        text: "Every player jumps to a random flashy space.",
+        run: async () => {
+          const flashySpaces = BOARD_SPACES
+            .map((space, index) => ({ space, index }))
+            .filter(item => ["mini", "chaos", "teleport", "treasure"].includes(item.space.type));
+          playSound("teleport");
+          for (const player of players) {
+            const landing = sample(flashySpaces);
+            player.position = landing.index;
+            log(`${player.name} portal-jumped to ${landing.space.name}.`);
+            updateTokens();
+            await wait(240);
+          }
+        }
+      },
+      {
+        name: "Leader Loot",
+        text: "The player with the fewest treasures steals 1 from the leader.",
+        run: async () => {
+          const sorted = [...players].sort((a, b) => b.treasures - a.treasures);
+          const leader = sorted[0];
+          const underdog = [...players].sort((a, b) => a.treasures - b.treasures)[0];
+          if (leader.treasures > 0 && leader.id !== underdog.id) {
+            leader.treasures -= 1;
+            underdog.treasures += 1;
+            playSound("treasure");
+            log(`${underdog.name} stole 1 treasure from leader ${leader.name}.`);
+          } else {
+            addTreasure(getCurrentPlayer(), 1);
+            log("No clear leader, so the current player grabs the loose treasure instead.");
+          }
+        }
+      },
+      {
+        name: "Dice Riot",
+        text: "One wild die roll moves every player forward.",
+        run: async () => {
+          const roll = randomInt(1, 6);
+          playSound("dice");
+          log(`Dice Riot rolled ${roll}. Every player surges forward!`);
+          for (const player of players) {
+            await movePlayerBy(player, roll, 150);
+          }
+        }
+      },
+      {
+        name: "Trapdoor Shuffle",
+        text: "Swap positions with a random player, then they get frozen.",
+        run: async () => {
+          const current = getCurrentPlayer();
+          const target = sample(players.filter(p => p.id !== current.id));
+          const oldPosition = current.position;
+          current.position = target.position;
+          target.position = oldPosition;
+          target.skipTurn = true;
+          playSound("chaos");
+          updateTokens();
+          log(`${current.name} swapped spaces with ${target.name}, and ${target.name} is frozen next turn.`);
         }
       }
     ];
@@ -1359,7 +1494,9 @@
         treasures: 0,
         skipTurn: false,
         inTemple: false,
-        crossedStart: false
+        crossedStart: false,
+        laps: 0,
+        shield: false
       }));
       state.currentPlayerIndex = 0;
       state.gameStarted = true;
@@ -1428,8 +1565,10 @@
             <p class="player-name">${player.name}</p>
             <div class="player-stats">
               <span class="stat-pill">💎 ${player.treasures}/${CONFIG.treasureTarget}</span>
+              <span class="stat-pill">Laps ${player.laps}/${CONFIG.lapTarget}</span>
               <span class="stat-pill">Space ${player.inTemple ? "Temple" : player.position}</span>
               ${player.skipTurn ? `<span class="stat-pill">Frozen</span>` : ""}
+              ${player.shield ? `<span class="stat-pill">Shield</span>` : ""}
             </div>
           </div>
           <strong>${index === state.currentPlayerIndex && !state.gameOver ? "TURN" : ""}</strong>
@@ -1456,8 +1595,8 @@
       log(`${player.name} rolled a ${roll}.`);
       await movePlayer(player, roll);
 
-      if (await tryTempleWin(player)) return;
       await triggerSpace(player);
+      if (await tryAnyGameWin(player)) return;
       if (!state.gameOver) endTurn();
     }
 
@@ -1476,11 +1615,21 @@
     }
 
     async function movePlayer(player, steps) {
-      for (let i = 0; i < steps; i++) {
-        player.position = wrapPosition(player.position + 1);
-        if (player.position === 0) player.crossedStart = true;
+      await movePlayerBy(player, steps, CONFIG.moveDelay);
+    }
+
+    async function movePlayerBy(player, steps, delay = CONFIG.moveDelay) {
+      const direction = steps >= 0 ? 1 : -1;
+      for (let i = 0; i < Math.abs(steps); i++) {
+        player.position = wrapPosition(player.position + direction);
+        if (direction > 0 && player.position === 0) {
+          player.crossedStart = true;
+          player.laps += 1;
+          log(`${player.name} completed lap ${player.laps}/${CONFIG.lapTarget}.`);
+          playSound("treasure");
+        }
         updateTokens();
-        await wait(CONFIG.moveDelay);
+        await wait(delay);
       }
     }
 
@@ -1489,7 +1638,7 @@
       log(`${player.name} landed on ${space.name}: ${SPACE_TYPES[space.type].label}.`);
       switch (space.type) {
         case "start":
-          log("Start Camp is calm. Collect 5 treasures, then pass Start to enter the Temple.");
+          log(`Start Camp is a lap checkpoint. First to ${CONFIG.treasureTarget} treasures or ${CONFIG.lapTarget} laps wins.`);
           break;
         case "treasure":
           addTreasure(player, 1);
@@ -1513,24 +1662,24 @@
       }
     }
 
-    async function tryTempleWin(player) {
-      if (player.treasures < CONFIG.treasureTarget) return false;
-      if (!player.crossedStart && player.position !== 0) {
-        log(`${player.name} has enough treasure. Reach or pass Start to open the bridge to the Temple.`);
-        return false;
-      }
-      player.inTemple = true;
+    async function tryGameWin(player) {
+      const treasureWin = player.treasures >= CONFIG.treasureTarget;
+      const lapWin = player.laps >= CONFIG.lapTarget;
+      if (!treasureWin && !lapWin) return false;
       updateTokens();
       playSound("win");
       els.winBurst.classList.add("active");
       state.gameOver = true;
       state.busy = false;
       setControls(false);
-      log(`${player.name} reached the Treasure Temple with ${player.treasures} treasures and wins!`);
-      showModal("Temple Claimed", `
+      const winReason = treasureWin
+        ? `${player.treasures} treasures`
+        : `${player.laps} completed laps`;
+      log(`${player.name} wins Treasure Scramble with ${winReason}!`);
+      showModal("Treasure Scramble Champion", `
         <div class="mini-stage">
           <h3>${player.name} wins Treasure Scramble!</h3>
-          <p>${player.name} carried ${player.treasures} treasures into the center Treasure Temple.</p>
+          <p>${player.name} won with ${winReason}. The board keeps looping, but this explorer takes the crown.</p>
         </div>
       `, [
         { label: "Play Again", className: "", onClick: () => { closeModal(); els.winBurst.classList.remove("active"); startGame(); } },
@@ -1539,7 +1688,22 @@
       return true;
     }
 
+    async function tryAnyGameWin(preferredPlayer = getCurrentPlayer()) {
+      const ordered = [preferredPlayer, ...players.filter(player => player.id !== preferredPlayer.id)];
+      for (const player of ordered) {
+        if (await tryGameWin(player)) return true;
+      }
+      return false;
+    }
+
     async function runTrap(player) {
+      if (player.shield) {
+        player.shield = false;
+        playSound("treasure");
+        log(`${player.name}'s shield blocked the trap.`);
+        renderPlayerCards();
+        return;
+      }
       const traps = [
         async () => {
           const lost = removeTreasure(player, 1);
@@ -1548,11 +1712,7 @@
         async () => {
           log(`${player.name} tumbles backward ${CONFIG.trapBackSteps} spaces.`);
           playSound("trap");
-          for (let i = 0; i < CONFIG.trapBackSteps; i++) {
-            player.position = wrapPosition(player.position - 1);
-            updateTokens();
-            await wait(220);
-          }
+          await movePlayerBy(player, -CONFIG.trapBackSteps, 220);
         },
         async () => {
           player.skipTurn = true;
@@ -2000,7 +2160,30 @@
 
     function rewardMiniWinner(player, gameName) {
       addTreasure(player, 1);
-      log(`${player.name} won ${gameName} and earned 1 treasure.`);
+      const prizes = [
+        () => {
+          player.shield = true;
+          renderPlayerCards();
+          log(`${player.name} won ${gameName}, earned 1 treasure, and picked up a trap shield.`);
+        },
+        () => {
+          const rival = sample(players.filter(p => p.id !== player.id));
+          rival.skipTurn = true;
+          renderPlayerCards();
+          log(`${player.name} won ${gameName}, earned 1 treasure, and froze ${rival.name}.`);
+        },
+        () => {
+          addTreasure(player, 1);
+          log(`${player.name} won ${gameName} and hit the mini-game jackpot for 2 total treasures.`);
+        },
+        () => {
+          const boost = randomInt(1, CONFIG.miniBonusMoveMax);
+          player.position = wrapPosition(player.position + boost);
+          updateTokens();
+          log(`${player.name} won ${gameName}, earned 1 treasure, and boosted forward ${boost} spaces.`);
+        }
+      ];
+      sample(prizes)();
     }
 
     function addTreasure(player, amount) {
@@ -2027,9 +2210,7 @@
     function updateTurnUI() {
       const player = getCurrentPlayer();
       els.turnBanner.textContent = `${player.name}'s turn${player.skipTurn ? " - frozen!" : ""}`;
-      els.actionHint.textContent = player.treasures >= CONFIG.treasureTarget
-        ? "You have enough treasure. Reach or pass Start to enter the Temple."
-        : "Roll, move, and the space triggers automatically.";
+      els.actionHint.textContent = `Keep looping: win with ${CONFIG.treasureTarget} treasures or ${CONFIG.lapTarget} laps.`;
       updateTokens();
     }
 
@@ -2059,7 +2240,7 @@
 
     function showRules(open) {
       const rulesHtml = `
-        <p><strong>Goal:</strong> collect ${CONFIG.treasureTarget} treasures, then reach or pass Start to open the bridge into the center Treasure Temple.</p>
+        <p><strong>Goal:</strong> keep looping the board until one player collects ${CONFIG.treasureTarget} treasures or completes ${CONFIG.lapTarget} laps. There is no finish line now; the board stays wild until somebody hits a win goal.</p>
         <div class="help-grid">
           <div><strong>💎 Treasure:</strong> gain 1 treasure.</div>
           <div><strong>🪤 Trap:</strong> lose treasure, move back, or skip next turn.</div>
